@@ -1,0 +1,149 @@
+import copy
+
+
+class PuzzleNode:
+
+  def __init__(self, board, parent=None, action="", depth=0):
+    self.board = board
+    self.parent = parent
+    self.action = action
+    self.depth = depth
+
+  def find_blank(self):
+    for i in range(3):
+      for j in range(3):
+        if self.board[i][j] == 0:
+          return i, j
+
+  def generate_children(self):
+    children = []
+    r, c = self.find_blank()
+    moves = [(-1, 0, "UP"), (1, 0, "DOWN"), (0, -1, "LEFT"), (0, 1, "RIGHT")]
+
+    for dr, dc, move_name in moves:
+      nr, nc = r + dr, c + dc
+      if 0 <= nr < 3 and 0 <= nc < 3:
+        new_board = [row[:] for row in self.board]
+        # Swap blank tile with neighboring tile
+        new_board[r][c], new_board[nr][nc] = new_board[nr][nc], new_board[r][c]
+        children.append(
+            PuzzleNode(
+                new_board,
+                parent=self,
+                action=f"Slide {new_board[r][c]} {move_name}",
+                depth=self.depth + 1,
+            )
+        )
+    return children
+
+
+def board_to_tuple(board):
+  return tuple(tuple(row) for row in board)
+
+
+# ----------------------------------------------------
+# 1. Depth-First Search (DFS) Implementation
+# ----------------------------------------------------
+def dfs(initial_board, goal_board, max_depth=20):
+  start_node = PuzzleNode(initial_board)
+  stack = [start_node]
+  visited = set()
+
+  while stack:
+    curr = stack.pop()
+
+    if curr.board == goal_board:
+      return curr
+
+    state_tuple = board_to_tuple(curr.board)
+    if state_tuple in visited:
+      continue
+    visited.add(state_tuple)
+
+    if curr.depth < max_depth:
+      for child in reversed(curr.generate_children()):
+        if board_to_tuple(child.board) not in visited:
+          stack.append(child)
+  return None
+
+
+# ----------------------------------------------------
+# 2. Depth-Limited Search (DLS Helper for IDS)
+# ----------------------------------------------------
+def dls(node, goal_board, limit, path_set):
+  if node.board == goal_board:
+    return node
+
+  if node.depth >= limit:
+    return None
+
+  state_tuple = board_to_tuple(node.board)
+  path_set.add(state_tuple)
+
+  for child in node.generate_children():
+    if board_to_tuple(child.board) not in path_set:
+      res = dls(child, goal_board, limit, path_set)
+      if res:
+        return res
+
+  path_set.remove(state_tuple)  # Backtrack
+  return None
+
+
+# ----------------------------------------------------
+# 3. Iterative Deepening Search (IDS) Implementation
+# ----------------------------------------------------
+def ids(initial_board, goal_board, max_depth=30):
+  for limit in range(max_depth + 1):
+    start_node = PuzzleNode(initial_board)
+    path_set = set()
+    result = dls(start_node, goal_board, limit, path_set)
+    if result:
+      return result, limit
+  return None, max_depth
+
+
+# ----------------------------------------------------
+# Helper to Print Solution
+# ----------------------------------------------------
+def print_path(node):
+  path = []
+  curr = node
+  while curr:
+    path.append(curr)
+    curr = curr.parent
+  path.reverse()
+
+  print(f"Total Steps: {len(path) - 1}\n")
+  for step, step_node in enumerate(path):
+    action_text = (
+        f"Step {step}: {step_node.action}" if step > 0 else "Initial State"
+    )
+    print(action_text)
+    for row in step_node.board:
+      print(" ".join(str(val) if val != 0 else " " for val in row))
+    print("-" * 15)
+
+
+# ----------------------------------------------------
+# Test Execution
+# ----------------------------------------------------
+if __name__ == "__main__":
+  initial_board = [[1, 2, 3], [0, 4, 6], [7, 5, 8]]
+
+  goal_board = [[1, 2, 3], [4, 5, 6], [7, 8, 0]]
+
+  print("==========================================")
+  print("SOLVING WITH ITERATIVE DEEPENING SEARCH (IDS)")
+  print("==========================================")
+  ids_result, limit = ids(initial_board, goal_board)
+  if ids_result:
+    print(f"Goal found at depth limit: {limit}")
+    print_path(ids_result)
+
+  print("\n==========================================")
+  print("SOLVING WITH DEPTH-FIRST SEARCH (DFS)")
+  print("==========================================")
+  dfs_result = dfs(initial_board, goal_board)
+  if dfs_result:
+    print_path(dfs_result)
