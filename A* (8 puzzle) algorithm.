@@ -1,0 +1,101 @@
+import heapq
+
+# --- Configuration ---
+INITIAL_STATE = (2, 8, 3, 1, 6, 4, 0, 7, 5)
+GOAL_STATE = (1, 2, 3, 8, 0, 4, 7, 6, 5)
+
+# --- Heuristic 1: Misplaced Tiles ---
+def h1_misplaced_tiles(state, goal=GOAL_STATE):
+    """Counts the number of non-blank tiles that are not in their goal position."""
+    return sum(1 for i in range(9) if state[i] != 0 and state[i] != goal[i])
+
+# --- Heuristic 2: Manhattan Distance ---
+def h2_manhattan_distance(state, goal=GOAL_STATE):
+    """Calculates the sum of the horizontal and vertical distances of tiles from their goal positions."""
+    distance = 0
+    for i in range(9):
+        tile = state[i]
+        if tile != 0:
+            curr_row, curr_col = i // 3, i % 3
+            goal_idx = goal.index(tile)
+            goal_row, goal_col = goal_idx // 3, goal_idx % 3
+            distance += abs(curr_row - goal_row) + abs(curr_col - goal_col)
+    return distance
+
+# --- State Expansion ---
+def get_neighbors(state):
+    """Generates valid neighbor states by moving the blank (0) space."""
+    neighbors = []
+    zero_idx = state.index(0)
+    row, col = zero_idx // 3, zero_idx % 3
+    moves = [(-1, 0), (1, 0), (0, -1), (0, 1)] 
+    
+    for dr, dc in moves:
+        nr, nc = row + dr, col + dc
+        if 0 <= nr < 3 and 0 <= nc < 3:
+            new_zero_idx = nr * 3 + nc
+            new_state = list(state)
+            new_state[zero_idx], new_state[new_zero_idx] = new_state[new_zero_idx], new_state[zero_idx]
+            neighbors.append(tuple(new_state))
+            
+    return neighbors
+
+# --- A* Search Algorithm ---
+def a_star_search(start, goal, heuristic_func):
+    """
+    Executes A* search using the provided heuristic function.
+    Returns the solution path, total cost, and number of nodes expanded.
+    """
+    open_list = []
+    counter = 0  # Tie-breaker for states with the same f-value
+    heapq.heappush(open_list, (heuristic_func(start, goal), 0, counter, start, [start]))
+    closed_set = set()
+    nodes_expanded = 0
+
+    while open_list:
+        f, g, _, current, path = heapq.heappop(open_list)
+        
+        if current in closed_set:
+            continue
+            
+        closed_set.add(current)
+        nodes_expanded += 1
+        
+        if current == goal:
+            return path, g, nodes_expanded
+            
+        for neighbor in get_neighbors(current):
+            if neighbor not in closed_set:
+                counter += 1
+                g_new = g + 1
+                h_new = heuristic_func(neighbor, goal)
+                f_new = g_new + h_new
+                heapq.heappush(open_list, (f_new, g_new, counter, neighbor, path + [neighbor]))
+                
+    return None, float('inf'), nodes_expanded
+
+# --- Visualization Helper ---
+def print_board(state):
+    for i in range(0, 9, 3):
+        row = [str(x) if x != 0 else '_' for x in state[i:i+3]]
+        print(" " + " ".join(row))
+
+# --- Execution & FULL Step-by-Step Output ---
+if __name__ == "__main__":
+    print("Solving 8-Puzzle using A* (Manhattan Distance)...\n")
+    
+    path, cost, expanded = a_star_search(INITIAL_STATE, GOAL_STATE, h2_manhattan_distance)
+    
+    print(f"Total Nodes Expanded: {expanded}")
+    print(f"Total Steps (Cost) to Goal: {cost}")
+    print("-" * 40)
+    print("FULL STEP-BY-STEP SOLUTION PATH:\n")
+    
+    for step_num, state in enumerate(path):
+        print(f"Step {step_num}:")
+        print_board(state)
+        
+        if step_num < len(path) - 1:
+            print("\n   |\n   v\n")
+        else:
+            print("\n*** GOAL REACHED! ***\n")
